@@ -1,8 +1,12 @@
+#[derive(Clone)]
+/// Element style
 pub struct Style {
     pub position: Position,
-    pub display: Display
+    /// [https://www.w3.org/TR/css-display-3/]
+    pub display: Display,
 }
 
+#[derive(Clone)]
 pub enum Display {
     None,
     Contents,
@@ -35,7 +39,7 @@ pub enum Display {
     /// block table
     Table,
     /// inline table
-    InlineTable
+    InlineTable,
 }
 
 impl Display {
@@ -48,7 +52,7 @@ impl Display {
             Self::Grid => true,
             Self::BlockRuby => true,
             Self::Table => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_inline(&self) -> bool {
@@ -60,21 +64,22 @@ impl Display {
             Self::InlineGrid => true,
             Self::Ruby => true,
             Self::InlineTable => true,
-            _ => false
+            _ => false,
         }
-
     }
     pub fn is_run_in(&self) -> bool {
         match self {
             Self::RunIn => true,
-            _ => false
+            _ => false,
         }
     }
 }
 
+#[derive(Clone)]
 pub enum Position {
     Relative,
     Absolute,
     Static,
     Fixed,
 }
+
