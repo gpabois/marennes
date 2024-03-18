@@ -11,14 +11,6 @@ pub enum Level {
     Inline,
 }
 
-pub struct BlockFormattingContext;
-pub struct InlineFormattingContext;
-
-pub enum FormattingContext {
-    Block(BlockFormattingContext),
-    Inline(InlineFormattingContext),
-}
-
 /// Generates the formatting tree (box tree) of the document.
 pub fn format(document: &dom::Document) -> BoxTree<i64> {
     let tree = BoxTree::<i64>::default();

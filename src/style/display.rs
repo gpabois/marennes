@@ -1,10 +1,3 @@
-#[derive(Clone)]
-/// Element style
-pub struct Style {
-    pub position: Position,
-    /// [https://www.w3.org/TR/css-display-3/]
-    pub display: Display,
-}
 
 #[derive(Clone)]
 pub enum Display {
@@ -42,6 +35,12 @@ pub enum Display {
     InlineTable,
 }
 
+impl Default for Display {
+    fn default() -> Self {
+        Self::Block
+    }
+}
+
 impl Display {
     pub fn is_block(&self) -> bool {
         match self {
@@ -74,12 +73,3 @@ impl Display {
         }
     }
 }
-
-#[derive(Clone)]
-pub enum Position {
-    Relative,
-    Absolute,
-    Static,
-    Fixed,
-}
-

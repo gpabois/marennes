@@ -3,9 +3,9 @@ use std::collections::BTreeMap;
 use super::{Edge, Level};
 use crate::{dom, geometry::Block, style};
 
-pub type NodeId = usize;
-pub type NodeRef<'a, Unit> = &'a Node<Unit>;
-pub type NodeMut<'a, Unit> = &'a mut Node<Unit>;
+pub type BoxTreeNodeId = usize;
+pub type BoxTreeNodeRef<'a, Unit> = &'a BoxTreeNode<Unit>;
+pub type BoxTreeNodeMut<'a, Unit> = &'a mut BoxTreeNode<Unit>;
 
 #[derive(Default)]
 pub struct BoxTree<Unit> {
@@ -34,7 +34,7 @@ impl<Unit> BoxTree<Unit> {
 }
 
 /// A box tree node.
-pub enum Node<Unit> {
+pub enum BoxTreeNode<Unit> {
     Box(Box<Unit>),
     TextSequence(TextSequence),
 }
@@ -60,9 +60,9 @@ pub struct Box<Unit> {
     /// Style properties
     pub style: style::Style,
     /// Children of the box
-    pub children: Vec<NodeId>,
+    pub children: Vec<BoxTreeNodeId>,
     /// The formatting context of the box
-    pub level: Level,
+    pub formatting_context: Level,
 }
 
 pub struct TextSequence {

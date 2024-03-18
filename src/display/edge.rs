@@ -1,5 +1,5 @@
 
-/// An edge
+/// An edge, a component of the box model.
 pub struct Edge<Unit>{
     pub top:    Unit,
     pub bottom: Unit,
