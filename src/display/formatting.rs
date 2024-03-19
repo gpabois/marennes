@@ -1,11 +1,42 @@
-pub struct BlockFormattingContext;
-pub struct InlineFormattingContext;
+use std::ops::{Deref, DerefMut};
+
+use crate::collections::{book::BookItemId, Book};
+
+/// Block formatting context
+#[derive(Default)]
+pub struct BFC;
+
+/// Inline formatting context
+pub struct IFC;
 
 pub enum FormattingContext {
-    Block(BlockFormattingContext),
-    Inline(InlineFormattingContext),
+    Block(BFC),
+    Inline(IFC),
 }
 
-pub struct FormattingContexts {
-    
+pub type FormattingContextId = BookItemId;
+
+/// Une collection de contextes de formattage.
+#[derive(Default)]
+pub struct FormattingContexts(Book<50, FormattingContext>);
+
+impl FormattingContexts {
+    /// Crée un nouveau contexte de formattage de blocs.
+    pub fn new_bfc(&mut self) -> FormattingContextId {
+        self.write(FormattingContext::Block(BFC::default()))
+    }
+}
+
+impl Deref for FormattingContexts {
+    type Target = Book<50, FormattingContext>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for FormattingContexts {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }

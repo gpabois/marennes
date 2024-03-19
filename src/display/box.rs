@@ -1,43 +1,5 @@
-use std::collections::BTreeMap;
-
-use super::{Edge, Level};
-use crate::{dom, geometry::Block, style};
-
-pub type BoxTreeNodeId = usize;
-pub type BoxTreeNodeRef<'a, Unit> = &'a BoxTreeNode<Unit>;
-pub type BoxTreeNodeMut<'a, Unit> = &'a mut BoxTreeNode<Unit>;
-
-#[derive(Default)]
-pub struct BoxTree<Unit> {
-    counter: usize,
-    inner: BTreeMap<NodeId, Node<Unit>>,
-}
-
-impl<Unit> BoxTree<Unit> {
-    /// Allocate a new box in the tree
-    pub fn alloc(&mut self, node: Node<Unit>) -> NodeId {
-        self.counter += 1;
-        let id = self.counter;
-        self.inner.insert(id, node);
-        id
-    }
-
-    /// Get a reference to a box tree node by its id.
-    pub fn get(&self, id: &NodeId) -> Option<NodeRef<'_, Unit>> {
-        self.inner.get(id)
-    }
-
-    /// Get a mutable reference to a box tree node by its id.
-    pub fn get_mut(&mut self, id: &NodeId) -> Option<NodeMut<'_, Unit>> {
-        self.inner.get_mut(id)
-    }
-}
-
-/// A box tree node.
-pub enum BoxTreeNode<Unit> {
-    Box(Box<Unit>),
-    TextSequence(TextSequence),
-}
+use super::Edge;
+use crate::{document, geometry::Block, style};
 
 ///
 pub struct Box<Unit> {
@@ -56,18 +18,7 @@ pub struct Box<Unit> {
     pub margin: Edge<Unit>,
     /// The element from which the box is generated
     /// Anonymous boxes has no element
-    pub element: Option<dom::NodeId>,
+    pub element: Option<document::NodeId>,
     /// Style properties
     pub style: style::Style,
-    /// Children of the box
-    pub children: Vec<BoxTreeNodeId>,
-    /// The formatting context of the box
-    pub formatting_context: Level,
 }
-
-pub struct TextSequence {
-    pub text: String,
-    pub element: Option<dom::NodeId>,
-    pub style: style::Style,
-}
-
