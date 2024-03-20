@@ -66,6 +66,10 @@ impl Display {
         matches!(self, Self::None)
     }
 
+    pub fn is_contents(&self) -> bool {
+        matches!(self, Self::Contents)
+    }
+
     pub fn inner_type(&self) -> Option<InnerDisplayType> {
         if self.is_flow() {
             Some(InnerDisplayType::Flow)

@@ -1,5 +1,5 @@
-mod display;
-mod position;
+pub mod display;
+pub mod position;
 
 pub use display::Display;
 pub use position::Position;
