@@ -1,7 +1,13 @@
 use std::{
     alloc::{alloc, dealloc, handle_alloc_error, Layout},
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut}, sync::atomic::AtomicUsize,
 };
+
+static CHAPTER_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+fn new_chapter_id() -> usize {
+    CHAPTER_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
 
 #[derive(Debug)]
 pub enum BookError {
@@ -16,8 +22,84 @@ type PageId = usize;
 /// Identifiant d'un objet stocké dans un livre.
 #[derive(Clone)]
 pub struct BookItemId {
-    page: usize,
-    line: usize,
+    chapter: usize,
+    page:    usize,
+    line:    usize,
+}
+
+/// Un chapitre est un ensemble de page
+/// Utilisé pour fusionner des livres entre eux
+/// Le numéro de chapitre est a priori unique pour l'ensemble
+/// de l'exécution du programme.
+struct Chapter<const N: usize, Item> {
+    id: usize,
+    pages: Vec<Page<N, Item>>,
+}
+
+impl<const N: usize, Item> Chapter<N, Item> {
+    fn new() -> Self {
+        let id = new_chapter_id();
+        Self {
+            id,
+            pages: Vec::default()
+        }
+    }
+
+    /// Alloue une nouvelle entrée dans le livre.
+    ///
+    /// # Safety
+    /// Cette opération n'est pas sûre car elle n'initialise pas l'entrée.
+    pub unsafe fn alloc_entry(&mut self) -> BookItemId {
+        let page = self.get_mut_unfilled_page();
+        page.alloc().unwrap()
+    }
+
+    /// Initialise une entrée dans le livre.
+    ///
+    /// # Safety
+    /// Cette opération n'est pas sûre car elle va réécrire une entrée qui est peut être déjà en
+    /// cours d'emprunt.
+    pub unsafe fn init_entry(&mut self, id: &BookItemId, item: Item) {
+        if let Some(page) = self.pages.get_mut(id.page) {
+            page.init_entry(id, item);
+        }
+    }
+
+    /// Ajoute une nouvelle page au chapitre.
+    fn add_new_page(&mut self) -> PageId {
+        let page_id = self.pages.len();
+        self.pages.push(Page::new(page_id));
+        page_id
+    }
+
+    
+    /// Récupère une mut-référence sur une page qui est garantie de ne pas être pleine.
+    fn get_mut_unfilled_page(&mut self) -> &mut Page<N, Item> {
+        // No page in the book, yet.
+        if self.pages.is_empty() {
+            let page_id = self.add_new_page();
+            return self.pages.get_mut(page_id).unwrap();
+        }
+
+        // Last page has no more room to spare.
+        if self.pages.last().unwrap().is_full() {
+            let page_id = self.add_new_page();
+            return self.pages.get_mut(page_id).unwrap();
+        }
+
+        // Return the last page in the book
+        self.pages.last_mut().unwrap()
+    }
+
+    fn write(&mut self, item: Item) -> BookItemId {
+        let page = self.get_mut_unfilled_page();
+        let (page_id, line_id) = page.write(item).unwrap();
+        BookItemId {
+            chapter: self.id,
+            page: page_id,
+            line: line_id
+        }
+    }
 }
 
 /// Découple les opérations d'insertion

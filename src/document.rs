@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{collections::tree, style::Style};
 
-pub type NodeId = tree::TreeNodeId;
+pub type DocumentNodeId = tree::TreeNodeId;
 
 /// An HTML document
 #[derive(Default)]
@@ -34,10 +34,14 @@ pub struct Element {
 }
 
 /// Text node
-pub struct Text(String);
+pub struct Text{ 
+    pub style: Style,
+    pub text: String
+}
 
 impl AsRef<str> for Text {
     fn as_ref(&self) -> &str {
-        &self.0
+        &self.text
     }
 }
+

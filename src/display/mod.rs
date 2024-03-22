@@ -4,18 +4,17 @@ pub mod formatting;
 pub mod fragment;
 pub mod text_sequence;
 
-use std::{fmt::Display, ops::Deref};
+use std::{default, fmt::Display, ops::Deref};
 
 pub use edge::Edge;
 pub use fragment::{Fragment, FragmentTree};
 pub use r#box::Box;
 pub use text_sequence::TextSequence;
 
-use crate::{document::{self, Document, Element}, style::display::{InnerDisplayType, OuterDisplayType}};
+use crate::{document::{self, Document, DocumentNodeId, Element}, style::display::{InnerDisplayType, OuterDisplayType}};
 
 use self::{
-    formatting::{FormattingContextId, FormattingContexts},
-    fragment::FragmentId,
+    r#box::{BoxTree, BoxTreeNodeId}, formatting::{FormattingContextId, FormattingContexts}, fragment::FragmentId
 };
 
 /// Contexte global de formatage
@@ -25,46 +24,51 @@ pub struct GlobalContext<'a, Unit> where Unit: 'static {
     /// Collection des contextes de formatage.
     fcs: FormattingContexts,
     /// Arbre de fragments.
-    ftree: FragmentTree<Unit>
+    ftree: FragmentTree<Unit>,
+    /// Arbre de boîtes.
+    btree: BoxTree<Unit>
 }
 
 /// Contexte local de formatage
 pub struct LocalContext {
+    /// The current document node
+    doc_node_id: DocumentNodeId,
     /// Contexte de formatage localement applicable.
     fc_id: FormattingContextId,
-    /// Boîte parente
-    /// Boîte primordiale (boîte racine d'un élément)
 }
 
-/// Formate le document et génère un arbre de rendu.
-pub fn format(doc: &document::Document) -> FragmentTree<i64> {
+pub struct DisplayTree<Unit> where Unit: 'static {
+    pub ftree: FragmentTree<Unit>,
+    pub btree: BoxTree<Unit>
+}
+
+/// Génère les arbres de rendu.
+pub fn format(doc: &document::Document) -> DisplayTree<i64> {
     let mut fcs = formatting::FormattingContexts::default();
     let mut ftree = FragmentTree::<i64>::default();
+    let mut btree = BoxTree::<i64>::default();
 
-    let global = GlobalContext {doc, fcs, ftree};
+    let global = GlobalContext {doc, fcs, ftree, btree};
 
     // Par défaut, on démarre dans un BFC pour le formatage.
     let root_fc = fcs.new_bfc();
     if let Some(root) = doc.root() {
-        if let Some(root_fragment) = format_document_node(doc, root, &mut ftree, &root_fc, &mut fcs)
+        let local = LocalContext{doc_node_id: root.clone(), fc_id: root_fc};
+
+        if let Some(root_box) = format_document_node(local, global)
         {
-            ftree.set_root(&root_fragment);
+            btree.set_root(&root_box);
         }
     }
 
-    ftree
+    DisplayTree { ftree, btree }
 }
 
+
 /// Formate un noeud d'un document.
-fn format_document_node(
-    doc: &document::Document,
-    doc_node_id: &document::NodeId,
-    ftree: &mut FragmentTree<i64>,
-    fc_id: &FormattingContextId,
-    fcs: &mut FormattingContexts,
-) -> Option<FragmentId> {
-    match doc.borrow(doc_node_id).deref().deref() {
-        document::DocumentNode::Text(text) => Some(ftree.new_text_sequence(text)),
+fn format_document_node<Unit>(local: LocalContext, global: GlobalContext<'_, Unit>) -> Option<BoxTreeNodeId> {
+    match global.doc.borrow(&local.doc_node_id).deref().deref() {
+        document::DocumentNode::Text(text) => Some(global.btree.new_text_sequence(&text.text, text.style.clone())),
         document::DocumentNode::Element(el) => format_document_element(doc, el, fc_id, fcs),
     }
 }
@@ -83,12 +87,7 @@ fn format_document_contents(
 }
 
 /// Formate un élément d'un document.
-fn format_document_element(
-    doc: &document::Document,
-    element: &Element,
-    fc_id: &FormattingContextId,
-    fcs: &mut FormattingContexts,
-) -> Option<FragmentId> {
+fn format_document_element<Unit>(element: &Element, local: LocalContext, global: GlobalContext<'_, Unit>) -> Option<FragmentId> {
     
     // On ne génère pas de sous-arbre d'affichage si display: None.
     if element.style.display.is_none() {

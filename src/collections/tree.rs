@@ -69,12 +69,12 @@ impl<const N: usize, Data> Tree<N, Data> {
     /// Crée un nouveau noeud.
     ///
     /// Cette fonction ne crée pas de liens entre les noeuds (Parent/enfants)
-    pub fn new_node(&mut self, data: Data) -> TreeNodeId {
+    pub fn new_node<D: Into<Data>>(&mut self, data: D) -> TreeNodeId {
         unsafe {
             let id = self.nodes.alloc_entry();
             let node = TreeNode {
                 id: id.clone(),
-                data,
+                data: data.into(),
                 parent: None,
                 children: Vec::default(),
             };
