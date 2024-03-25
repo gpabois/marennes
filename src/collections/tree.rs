@@ -1,23 +1,27 @@
 use std::ops::{Deref, DerefMut};
 
-use super::{
-    book::{BookItemId, BookResult, MutBookEntry, RefBookEntry},
-    Book,
-};
+use super::{book::BookError, Book, BookEntry, BookReadEntry, BookResult, BookWeakEntry};
 
-pub type TreeNodeId = BookItemId;
+pub type TreeError = BookError;
 pub type TreeResult<D> = BookResult<D>;
-pub type RefTreeNode<'a, Data> = RefBookEntry<'a, TreeNode<Data>>;
-pub type MutTreeNode<'a, Data> = MutBookEntry<'a, TreeNode<Data>>;
 
-pub struct TreeNode<Data> {
-    id: TreeNodeId,
+/// Référence faible vers une noeud de l'arbre.
+pub type WeakTreeNode<const N: usize, Data> = BookWeakEntry<N, TreeNode<N, Data>>;
+
+/// Référence mutable sur un noeud de l'arbre.
+pub type MutTreeNode<const N: usize, Data> = BookEntry<N, TreeNode<N, Data>>;
+
+/// Référence immutable sur un noeud de l'arbre.
+pub type RefTreeNode<const N: usize, Data> = BookReadEntry<N, TreeNode<N, Data>>;
+
+/// Un noeud sur un arbre.
+pub struct TreeNode<const N: usize, Data> {
     data: Data,
-    pub parent: Option<TreeNodeId>,
-    pub children: Vec<TreeNodeId>,
+    pub parent: Option<WeakTreeNode<N, Data>>,
+    pub children: Vec<WeakTreeNode<N, Data>>,
 }
 
-impl<Data> Deref for TreeNode<Data> {
+impl<const N: usize, Data> Deref for TreeNode<N, Data> {
     type Target = Data;
 
     fn deref(&self) -> &Self::Target {
@@ -25,84 +29,74 @@ impl<Data> Deref for TreeNode<Data> {
     }
 }
 
-impl<Data> DerefMut for TreeNode<Data> {
+impl<const N: usize, Data> DerefMut for TreeNode<N, Data> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
     }
 }
 
-impl<Data> TreeNode<Data> {
-    /// Récupère l'identifiant du noeud.
-    pub fn id(&self) -> &TreeNodeId {
-        &self.id
-    }
-}
-
-/// Un catalogue est un livre où les entrées sont auto-référencées
-/// (ie ils connaissent leurs identifiants)
-///
-/// N correspond au nombre de noeuds contenus dans une page contiguë.
+/// Un arbre, dont les noeuds sont stockés dans un livre.
+/// 
+/// Le paramètre N fixe la taille d'une page d'un livre.
 pub struct Tree<const N: usize, Data>
 where
     Data: 'static,
 {
-    root: Option<TreeNodeId>,
-    nodes: Book<N, TreeNode<Data>>,
+    /// Racine de l'arbre.
+    maybe_root: Option<WeakTreeNode<N, Data>>,
+    /// Noeuds stockés dans l'arbre.
+    nodes: Book<N, TreeNode<N, Data>>,
 }
 impl<const N: usize, Data> Default for Tree<N, Data> {
     fn default() -> Self {
         Self {
-            root: None,
+            maybe_root: None,
             nodes: Book::default(),
         }
     }
 }
 
 impl<const N: usize, Data> Tree<N, Data> {
-    pub fn root(&self) -> Option<&TreeNodeId> {
-        self.root.as_ref()
+    /// Essaye d'emprunter la racine, si elle existe.
+    /// 
+    /// L'opération peut échouer si la racine est déjà empruntée en écriture.
+    pub fn try_borrow_root(&self) -> Option<TreeResult<RefTreeNode<N, Data>>> {
+        self.maybe_root.map(|root| root.try_read_upgrade().unwrap())
     }
 
-    pub fn set_root(&mut self, id: &TreeNodeId) {
-        self.root = Some(id.clone())
-    }
-    /// Crée un nouveau noeud.
-    ///
-    /// Cette fonction ne crée pas de liens entre les noeuds (Parent/enfants)
-    pub fn new_node<D: Into<Data>>(&mut self, data: D) -> TreeNodeId {
-        unsafe {
-            let id = self.nodes.alloc_entry();
-            let node = TreeNode {
-                id: id.clone(),
-                data: data.into(),
-                parent: None,
-                children: Vec::default(),
-            };
+    /// Retourne une référence faible vers la racine, si elle existe.
+    pub fn root(&self) -> Option<WeakTreeNode<N, Data>> {
+        self.maybe_root.clone()
+    }   
 
-            self.nodes.init_entry(&id, node);
-            id
+    /// Ajoute un sous-arbre en partant du noeud définit à *from*.
+    pub fn append_subtree(&mut self, mut from: MutTreeNode<N, Data>, other: Self) {
+        self.nodes += other.nodes;
+        
+        if let Some(root) = other.root() {
+            from.children.push(root);
         }
     }
 
-    /// Emprunte un noeud, s'il existe, et pas déjà mut-emprunté.
-    pub fn try_borrow<'a>(&'a self, id: &TreeNodeId) -> Option<TreeResult<RefTreeNode<'a, Data>>> {
-        self.nodes.try_get(id)
-    }
+    /// Crée un nouveau noeud.
+    /// 
+    /// Cette fonction ne crée pas de liens entre les noeuds (Parent/enfants).
+    /// 
+    /// Si aucune racine n'existe, le noeud prend sa place.
+    /// 
+    /// Retourne une référence faible vers le noeud.
+    pub fn insert_node<D: Into<Data>>(&mut self, data: D) -> WeakTreeNode<N, Data> {
+        let node = TreeNode {
+            data: data.into(),
+            parent: None,
+            children: Vec::default(),
+        };
 
-    /// Emprunte un noeud, panique s'il n'existe pas, ou est déjà mut-emprunté.
-    pub fn borrow<'a>(&'a self, id: &TreeNodeId) -> RefTreeNode<'a, Data> {
-        self.nodes.get(id)
-    }
+        let node = MutTreeNode::weak_downgrade(&self.nodes.write(node));
+        if self.maybe_root.is_none() {
+            self.maybe_root = Some(node.clone());
+        }
 
-    /// Mut-emprunte un noeud, s'il existe, et pas déjà emprunté ou mut-emprunté.
-    pub fn try_borrow_mut<'a>(
-        &'a self,
-        id: &TreeNodeId,
-    ) -> Option<TreeResult<MutTreeNode<'a, Data>>> {
-        self.nodes.try_get_mut(id)
-    }
-
-    pub fn borrow_mut<'a>(&'a self, id: &TreeNodeId) -> MutTreeNode<'a, Data> {
-        self.nodes.get_mut(id)
+        node
     }
 }

@@ -1,20 +1,20 @@
 use std::ops::{Deref, DerefMut};
 
-use super::{r#box::BoxTreeNodeId, TextSequence};
 use crate::collections::tree;
 
-pub type FragmentId = tree::TreeNodeId;
+use super::r#box::WeakBoxTreeNode;
 
-/// A box tree fragment
-pub enum Fragment<Unit> {
-    /// The fragment is directly the primordial box.
-    Box(BoxTreeNodeId),
+/// Définit la taille d'une page de noeuds.
+const FRAGMENT_TREE_PAGE_SIZE: usize = 50;
 
-    /// Séquence de texte
-    Text(BoxTreeNodeId),
-}
+type InnerTree<Unit> = tree::Tree<FRAGMENT_TREE_PAGE_SIZE, FragmentValue<Unit>>;
 
-pub struct FragmentTree<Unit>(tree::Tree<50, Fragment<Unit>>)
+pub type Fragment<Unit>      = tree::TreeNode<FRAGMENT_TREE_PAGE_SIZE, FragmentValue<Unit>>;
+pub type WeakFragment<Unit>  = tree::WeakTreeNode<FRAGMENT_TREE_PAGE_SIZE, FragmentValue<Unit>>;
+pub type RefFragment<Unit>   = tree::RefTreeNode<FRAGMENT_TREE_PAGE_SIZE, FragmentValue<Unit>>;
+pub type MutFragment<Unit>   = tree::MutTreeNode<FRAGMENT_TREE_PAGE_SIZE, FragmentValue<Unit>>;
+
+pub struct FragmentTree<Unit>(InnerTree<Unit>)
 where
     Unit: 'static;
 
@@ -26,7 +26,7 @@ impl<Unit> Default for FragmentTree<Unit> {
 }
 
 impl<Unit> Deref for FragmentTree<Unit> {
-    type Target = tree::Tree<50, Fragment<Unit>>;
+    type Target = InnerTree<Unit>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -37,4 +37,13 @@ impl<Unit> DerefMut for FragmentTree<Unit> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+
+/// A box tree fragment
+pub enum FragmentValue<Unit> {
+    /// The fragment is directly the primordial box.
+    Box(WeakBoxTreeNode<Unit>),
+
+    /// Séquence de texte
+    Text(WeakBoxTreeNode<Unit>),
 }

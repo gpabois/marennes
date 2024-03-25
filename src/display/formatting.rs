@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::collections::{book::BookItemId, Book};
+use crate::collections::{_book::BookItemId, Book};
 
 /// Block formatting context
 #[derive(Default)]

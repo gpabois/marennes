@@ -2,14 +2,23 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{collections::tree, style::Style};
 
-pub type DocumentNodeId = tree::TreeNodeId;
+/// Définit la taille d'une page de noeuds.
+pub const DOCUMENT_PAGE_SIZE: usize = 50;
+
+type InnerTree = tree::Tree<DOCUMENT_PAGE_SIZE, DocumentNodeValue>;
+
+/// Un noeud d'un document.
+pub type DocumentNode = tree::TreeNode<DOCUMENT_PAGE_SIZE, DocumentNodeValue>;
+pub type WeakDocumentNode = tree::WeakTreeNode<DOCUMENT_PAGE_SIZE, DocumentNodeValue>;
+pub type RefDocumentNode = tree::RefTreeNode<DOCUMENT_PAGE_SIZE, DocumentNodeValue>;
+pub type MutDocumentNode = tree::MutTreeNode<DOCUMENT_PAGE_SIZE, DocumentNodeValue>;
 
 /// An HTML document
 #[derive(Default)]
-pub struct Document(tree::Tree<50, DocumentNode>);
+pub struct Document(InnerTree);
 
 impl Deref for Document {
-    type Target = tree::Tree<50, DocumentNode>;
+    type Target = InnerTree;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -23,7 +32,7 @@ impl DerefMut for Document {
 }
 
 /// Document's node
-pub enum DocumentNode {
+pub enum DocumentNodeValue {
     Element(Element),
     Text(Text),
 }
