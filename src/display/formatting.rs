@@ -1,13 +1,12 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::collections::{_book::BookItemId, Book};
-
 /// Block formatting context
 #[derive(Default)]
 pub struct BFC;
 
 /// Inline formatting context
 pub struct IFC;
+
 
 pub enum FormattingContext {
     Block(BFC),
