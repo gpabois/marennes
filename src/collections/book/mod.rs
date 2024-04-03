@@ -82,3 +82,15 @@ impl<const N: usize, Item> std::ops::AddAssign for Book<N, Item> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::Book;
+
+    #[test]
+    pub fn test_simple() {
+        let mut book = Book::<3, usize>::default();
+
+        let v1 = book.write(10);
+        assert!(*v1 == 10);
+    }
+}

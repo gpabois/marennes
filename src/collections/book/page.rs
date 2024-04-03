@@ -2,7 +2,6 @@ use std::{alloc::Layout, cell::Cell, ptr::{self, NonNull}};
 
 use super::{entry::BookEntry, line::{drop_strong_ref, Line, LineInner}};
 
-
 pub(super) struct Page<const N: usize, Item>{
     ptr: NonNull<PageInner<N, Item>>
 }
@@ -33,11 +32,6 @@ impl<const N: usize, Item> Page<N, Item> {
         unsafe { self.ptr.as_ref() }
     }
 
-    #[inline(always)]
-    fn inner_mut(&self) -> &mut PageInner<N, Item> {
-        unsafe { self.ptr.as_mut() }
-    }
-
     fn from_inner(ptr: NonNull<PageInner<N, Item>>) -> Self {
         Self {
             ptr
@@ -51,7 +45,7 @@ impl<const N: usize, Item> Drop for Page<N, Item> {
             self.inner_ref().dec_strong();
 
             if self.inner_ref().strong() == 0 {
-                ptr::drop_in_place(self.inner_mut());
+                ptr::drop_in_place(self.ptr.as_ptr());
             }
 
             self.inner_ref().dec_weak();
@@ -80,16 +74,18 @@ impl<const N: usize, Item> Page<N, Item> {
 
     /// Ecris une nouvelle entrée, si il reste de la place.
     pub fn write(&mut self, item: Item) -> Option<BookEntry<N,Item>> {
-        self.inner_mut().alloc(item).map(|ptr| {
-            let line = Line {
-                ptr: ptr.into()
-            };
-
-            BookEntry {
-                page: self.clone(),
-                line
-            }
-        })
+        unsafe {
+            self.ptr.as_ptr().as_mut().unwrap().alloc(item).map(|ptr| {
+                let line = Line {
+                    ptr: ptr.into()
+                };
+    
+                BookEntry {
+                    page: self.clone(),
+                    line
+                }
+            })
+        }
     }
 }
 
@@ -199,7 +195,7 @@ impl<const N: usize, Item> Drop for PageInner<N, Item> {
             .filter(|(i, _)| *i < self.cursor)
             .map(|(_, line)| line)
             .for_each(|line| unsafe {
-                drop_strong_ref(line)
+                drop_strong_ref(NonNull::new_unchecked(std::ptr::from_mut(line)))
             })
         }
     }

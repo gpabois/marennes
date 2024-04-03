@@ -1,28 +1,21 @@
 use std::ops::{Deref, DerefMut};
 
-use super::{fragment::WeakFragment, Edge, TextSequence};
+use super::{fragment::WeakFragment, Edge};
 use crate::{collections::tree, document, geometry::Block, style::{self, Style}};
 
 /// Définit la taille d'une page de noeuds.
 const BOX_TREE_PAGE_SIZE: usize = 50;
 
-type InnerTree<Unit> = tree::Tree<BOX_TREE_PAGE_SIZE, BoxTreeNodeValue<Unit>>;
+type InnerTree<Unit> = tree::Tree<BOX_TREE_PAGE_SIZE, Box<Unit>>;
 
 /// Un noeud de l'arbre à boîtes.
-pub type BoxTreeNode<Unit>      = tree::TreeNode<BOX_TREE_PAGE_SIZE, BoxTreeNodeValue<Unit>>;
-pub type WeakBoxTreeNode<Unit>  = tree::WeakTreeNode<BOX_TREE_PAGE_SIZE, BoxTreeNodeValue<Unit>>;
-pub type RefBoxTreeNode<Unit>   = tree::RefTreeNode<BOX_TREE_PAGE_SIZE, BoxTreeNodeValue<Unit>>;
-pub type MutBoxTreeNode<Unit>   = tree::MutTreeNode<BOX_TREE_PAGE_SIZE, BoxTreeNodeValue<Unit>>;
+pub type BoxTreeNode<Unit>      = tree::TreeNode<BOX_TREE_PAGE_SIZE, Box<Unit>>;
+pub type WeakBoxTreeNode<Unit>  = tree::WeakTreeNode<BOX_TREE_PAGE_SIZE, Box<Unit>>;
+pub type RefBoxTreeNode<Unit>   = tree::RefTreeNode<BOX_TREE_PAGE_SIZE, Box<Unit>>;
+pub type MutBoxTreeNode<Unit>   = tree::MutTreeNode<BOX_TREE_PAGE_SIZE, Box<Unit>>;
 
 #[derive(Default)]
 pub struct BoxTree<Unit>(InnerTree<Unit>) where Unit: 'static;
-
-impl<Unit> BoxTree<Unit> {
-    /// Crée une nouvelle séquence de texte.
-    pub fn new_text_sequence(&mut self, text: &str, style: Style) -> WeakBoxTreeNode<Unit> {
-        self.insert_node(TextSequence::new(text, style))
-    }
-}
 
 impl<Unit> Deref for BoxTree<Unit> {
     type Target = InnerTree<Unit>;
@@ -35,17 +28,6 @@ impl<Unit> Deref for BoxTree<Unit> {
 impl<Unit> DerefMut for BoxTree<Unit> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-}
-
-pub enum BoxTreeNodeValue<Unit> {
-    Box(Box<Unit>),
-    Text(TextSequence)
-}
-
-impl<Unit> From<TextSequence> for BoxTreeNodeValue<Unit> {
-    fn from(value: TextSequence) -> Self {
-        Self::Text(value)
     }
 }
 

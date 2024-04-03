@@ -11,10 +11,11 @@ use super::{line::{Line, ReadLine, WeakLine}, page::{Page, WeakPage}, BookResult
 /// - dégrader vers une référence forte immutable ;
 /// - dégrader vers une référence faible.
 pub struct BookEntry<const N: usize, Item> {
-    /// Une référence forte vers la page.
-    pub(super) page: Page<N, Item>,
     /// Une référence forte vers la ligne.
-    pub(super) line: Line<Item>
+    pub(super) line: Line<Item>,
+
+    /// Une référence forte vers la page.
+    pub(super) page: Page<N, Item>
 }
 
 impl<const N: usize, Item> BookEntry<N, Item> {
@@ -42,18 +43,10 @@ impl<const N: usize, Item> DerefMut for BookEntry<N, Item> {
 }
 
 pub struct BookReadEntry<const N: usize, Item> {
+    /// Une référence forte vers la ligne.
+    pub(super) line: ReadLine<Item>,
     /// Une référence forte vers la page.
     pub(super) page: Page<N, Item>,
-    /// Une référence forte vers la ligne.
-    pub(super) line: ReadLine<Item>  
-}
-
-/// On libère la ligne, puis la page.
-impl<const N: usize, Item> Drop for BookEntry<N, Item> {
-    fn drop(&mut self) {
-        drop(self.line);
-        drop(self.page);
-    }
 }
 
 /// Une référence faible vers une entrée dans un livre.
@@ -108,13 +101,5 @@ impl<const N: usize, Item> BookWeakEntry<N, Item> {
         }
         
         None
-    }
-}
-
-/// On libère la ligne, puis la page.
-impl<const N: usize, Item> Drop for BookWeakEntry<N, Item> {
-    fn drop(&mut self) {
-        drop(self.line);
-        drop(self.page);
     }
 }

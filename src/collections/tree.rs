@@ -61,7 +61,7 @@ impl<const N: usize, Data> Tree<N, Data> {
     /// 
     /// L'opération peut échouer si la racine est déjà empruntée en écriture.
     pub fn try_borrow_root(&self) -> Option<TreeResult<RefTreeNode<N, Data>>> {
-        self.maybe_root.map(|root| root.try_read_upgrade().unwrap())
+        self.maybe_root.as_ref().map(|root| root.try_read_upgrade().unwrap())
     }
 
     /// Retourne une référence faible vers la racine, si elle existe.
@@ -73,7 +73,7 @@ impl<const N: usize, Data> Tree<N, Data> {
     pub fn append_subtree(&mut self, mut from: MutTreeNode<N, Data>, other: Self) {
         self.nodes += other.nodes;
         
-        if let Some(root) = other.root() {
+        if let Some(root) = other.maybe_root {
             from.children.push(root);
         }
     }
