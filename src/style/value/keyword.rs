@@ -1,7 +1,16 @@
 use std::fmt::Display;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Keyword {
+    BorderBox,
+    PaddingBox,
+    ContentBox,
+    Text,
+
+    Local,
+    Scroll,
+    Fixed,
+
     Inherit,
     Unset,
     Initial,
@@ -9,14 +18,14 @@ pub enum Keyword {
     Block,
     Inline,
     RunIn,
-    
+
     Flow,
     FlowRoot,
     Table,
     Flex,
     Grid,
     Ruby,
-    
+
     ListItem,
 
     TableRowGroup,
@@ -33,11 +42,25 @@ pub enum Keyword {
     RubyTextContainer,
 
     None,
-    Contents,   
+    Contents,
+
+    Serif,
+    SansSerif,
+    Monospace,
+    Cursive,
+    Fantasy,
+    SystemUi,
+    UiSerif,
+    UiSansSerif,
+    UiMonospace,
+    UiRounded,
+    Emoji,
+    Math,
+    Fangsong,
 
     Normal,
     Italic,
-    Oblique
+    Oblique,
 }
 
 impl Display for Keyword {
@@ -73,16 +96,36 @@ impl Display for Keyword {
             Keyword::Normal => write!(f, "normal"),
             Keyword::Italic => write!(f, "italic"),
             Keyword::Oblique => write!(f, "oblique"),
+            Keyword::Serif => write!(f, "serif"),
+            Keyword::SansSerif => write!(f, "sans-serif"),
+            Keyword::Monospace => write!(f, "monospace"),
+            Keyword::Cursive => write!(f, "cursive"),
+            Keyword::Fantasy => write!(f, "fantasy"),
+            Keyword::SystemUi => write!(f, "system-ui"),
+            Keyword::UiSerif => write!(f, "ui-serif"),
+            Keyword::UiSansSerif => write!(f, "ui-sans-serif"),
+            Keyword::UiMonospace => write!(f, "ui-monospace"),
+            Keyword::UiRounded => write!(f, "ui-rounded"),
+            Keyword::Emoji => write!(f, "emoji"),
+            Keyword::Math => write!(f, "math"),
+            Keyword::Fangsong => write!(f, "fangsong"),
+            Keyword::Local => write!(f, "local"),
+            Keyword::Scroll => write!(f, "scroll"),
+            Keyword::Fixed => write!(f, "fixed"),
+            Keyword::BorderBox => write!(f, "border-box"),
+            Keyword::PaddingBox => write!(f, "padding-box"),
+            Keyword::ContentBox => write!(f, "content-box"),
+            Keyword::Text => write!(f, "text"),
         }
     }
 }
 
 impl Keyword {
     pub fn is_either(&self, values: &[Self]) -> bool {
-        values.iter().find(|value| **value == *self).is_some()
+        values.iter().any(|value| *value == *self)
     }
 
     pub fn is_either_func(values: &[Self]) -> impl Fn(&&Keyword) -> bool + '_ {
-        |value| values.iter().find(|v| **v == **value).is_some()
+        |value| values.iter().any(|v| *v == **value)
     }
 }

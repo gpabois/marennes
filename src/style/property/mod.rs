@@ -1,25 +1,21 @@
-mod font_family;
+mod background;
 mod display;
+mod font_family;
 
-use std::fmt::Display;
-
-pub use font_family::*;
+pub use background::*;
 pub use display::*;
+pub use font_family::*;
 
 use crate::style::value::Keyword;
 
 use super::Value;
 
-const ALLOWED_KWS: &[Keyword] = &[
-    Keyword::Initial,
-    Keyword::Inherit,
-    Keyword::Unset
-];
+const ALLOWED_KWS: &[Keyword] = &[Keyword::Initial, Keyword::Inherit, Keyword::Unset];
 
 pub enum ExplicitDefaulting {
-    Initial, 
+    Initial,
     Inherit,
-    Unset
+    Unset,
 }
 
 impl From<Keyword> for ExplicitDefaulting {
@@ -27,52 +23,77 @@ impl From<Keyword> for ExplicitDefaulting {
         match value {
             Keyword::Initial => ExplicitDefaulting::Initial,
             Keyword::Inherit => ExplicitDefaulting::Inherit,
-            Keyword::Unset   => ExplicitDefaulting::Unset,
-            _ => panic!("Wrong keyword for explicit defaulting")
+            Keyword::Unset => ExplicitDefaulting::Unset,
+            _ => panic!("Wrong keyword for explicit defaulting"),
         }
     }
 }
 
-#[derive(Default)]
-pub struct Property<T> {
-    pub initial:    T,
-    pub specified:  Option<T>,
-    pub computed:   Option<T>,
-    pub used:       Option<T>,
-
-    pub explicit_defaulting: Option<ExplicitDefaulting>
+#[derive(Clone, Copy)]
+pub enum SpecProperty<T> {
+    Initial,
+    Inherit,
+    Unset,
+    Value(T),
 }
 
-impl<T> std::fmt::Display for Property<T> where T: Display {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.initial)
+impl<T> Default for SpecProperty<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
+        Self::Value(T::default())
     }
 }
 
-impl<T> Property<T> 
-    where T: From<Value> + Default
+impl<T> std::fmt::Display for SpecProperty<T>
+where
+    T: std::fmt::Display,
 {
-    pub fn new<V>(arg: V) -> Self where Value: From<V>, V: Clone {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SpecProperty::Initial => write!(f, "initial"),
+            SpecProperty::Inherit => write!(f, "inherit"),
+            SpecProperty::Unset => write!(f, "unset"),
+            SpecProperty::Value(v) => v.fmt(f),
+        }
+    }
+}
+
+impl<T> From<SpecProperty<T>> for Value
+where
+    Value: From<T>,
+{
+    fn from(value: SpecProperty<T>) -> Self {
+        match value {
+            SpecProperty::Initial => Keyword::Initial.into(),
+            SpecProperty::Inherit => Keyword::Inherit.into(),
+            SpecProperty::Unset => Keyword::Unset.into(),
+            SpecProperty::Value(value) => Value::from(value),
+        }
+    }
+}
+
+impl<T> SpecProperty<T>
+where
+    T: From<Value> + Default,
+{
+    pub fn new<V>(arg: V) -> Self
+    where
+        Value: From<V>,
+        V: Clone,
+    {
         let value = Value::from(arg);
 
         if let Some(&kw) = value.either::<Keyword>(ALLOWED_KWS) {
-            Self {
-                initial:    T::default(),
-                specified:  None,
-                computed:   None,
-                used:       None,
-                explicit_defaulting: Some(ExplicitDefaulting::from(kw))
+            match kw {
+                Keyword::Inherit => Self::Inherit,
+                Keyword::Initial => Self::Initial,
+                Keyword::Unset => Self::Unset,
+                _ => unreachable!(),
             }
-        }
-        else {
-            Self {
-                initial: T::default(),
-                specified: Some(T::from(value)),
-                computed: None,
-                used: None,
-                explicit_defaulting: None
-            }
+        } else {
+            Self::Value(T::from(value))
         }
     }
 }
-

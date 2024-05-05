@@ -1,16 +1,13 @@
-use std::fmt::Display;
-
-
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum Unit {
     Pixel,
     Point,
     Percentage,
     Em,
-    Rem
+    Rem,
 }
 
-impl Display for Unit {
+impl std::fmt::Display for Unit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Unit::Pixel => write!(f, "px"),
@@ -29,13 +26,13 @@ impl Unit {
     }
 }
 
-#[derive(Debug, PartialEq)]   
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Length {
     pub quantity: f64,
-    pub unit: Unit
+    pub unit: Unit,
 }
 
-impl Display for Length {
+impl std::fmt::Display for Length {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {}", self.quantity, self.unit)
     }
@@ -48,24 +45,21 @@ impl std::ops::Mul for Length {
         let quantity = self.quantity * rhs.quantity;
 
         if self.unit == rhs.unit {
-            return Self {
+            Self {
                 unit: self.unit,
-                quantity
+                quantity,
             }
-        }
-        else if self.unit.is_relative() && !rhs.unit.is_relative() {
-            return Self {
+        } else if self.unit.is_relative() && !rhs.unit.is_relative() {
+            Self {
                 unit: rhs.unit,
-                quantity
+                quantity,
             }
-        }
-        else if !self.unit.is_relative() && rhs.unit.is_relative() {
-            return Self {
+        } else if !self.unit.is_relative() && rhs.unit.is_relative() {
+            Self {
                 unit: self.unit,
-                quantity
+                quantity,
             }
-        }
-        else {
+        } else {
             panic!("Lengths of different units are not multipliable.")
         }
     }
