@@ -6,6 +6,7 @@ mod value;
 pub use error::*;
 pub use property::*;
 pub use value::*;
+pub use parser::*;
 
 #[macro_export]
 macro_rules! lookup {

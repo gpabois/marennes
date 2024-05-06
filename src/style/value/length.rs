@@ -1,35 +1,12 @@
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
-pub enum Unit {
-    Pixel,
-    Point,
-    Percentage,
-    Em,
-    Rem,
-}
+use crate::style::StyleError;
 
-impl std::fmt::Display for Unit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Unit::Pixel => write!(f, "px"),
-            Unit::Point => write!(f, "pt"),
-            Unit::Percentage => write!(f, "%"),
-            Unit::Em => write!(f, "em"),
-            Unit::Rem => write!(f, "rem"),
-        }
-    }
-}
+use super::{Dimension, LengthUnit, Number, Percentage, Unit, Value};
 
-impl Unit {
-    #[inline(always)]
-    pub fn is_relative(&self) -> bool {
-        matches!(self, Self::Percentage | Self::Em | Self::Rem)
-    }
-}
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Length {
-    pub quantity: f64,
-    pub unit: Unit,
+    pub quantity: Number,
+    pub unit: LengthUnit
 }
 
 impl std::fmt::Display for Length {
@@ -38,29 +15,49 @@ impl std::fmt::Display for Length {
     }
 }
 
-impl std::ops::Mul for Length {
+impl From<Length> for Dimension {
+    fn from(value: Length) -> Self {
+        Self {
+            quantity: value.quantity,
+            unit: Unit::from(value.unit)
+        }
+    }
+}
+
+impl TryFrom<Value> for Length {
+    type Error = StyleError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Dimension(dim) => dim.try_into(),
+            Value::Length(length) => Ok(length),
+            _ => Err(StyleError::InvalidValue(&["<length>"]))
+        }
+    }
+}
+
+impl TryFrom<Dimension> for Length {
+    type Error = StyleError;
+
+    fn try_from(value: Dimension) -> Result<Self, Self::Error> {
+        if let Unit::Length(unit) = value.unit {
+            return Ok(Self {
+                quantity: value.quantity,
+                unit
+            });
+        }
+
+        Err(StyleError::InvalidValue(&["<length>"]))
+    }
+}
+
+impl std::ops::Mul<Percentage> for Length {
     type Output = Self;
 
-    fn mul(self, rhs: Self) -> Self {
-        let quantity = self.quantity * rhs.quantity;
-
-        if self.unit == rhs.unit {
-            Self {
-                unit: self.unit,
-                quantity,
-            }
-        } else if self.unit.is_relative() && !rhs.unit.is_relative() {
-            Self {
-                unit: rhs.unit,
-                quantity,
-            }
-        } else if !self.unit.is_relative() && rhs.unit.is_relative() {
-            Self {
-                unit: self.unit,
-                quantity,
-            }
-        } else {
-            panic!("Lengths of different units are not multipliable.")
+    fn mul(self, rhs: Percentage) -> Self::Output {
+        Length {
+            quantity: self.quantity * rhs,
+            unit: self.unit
         }
     }
 }
