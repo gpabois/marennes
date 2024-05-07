@@ -1,4 +1,4 @@
-use std::convert::Infallible;
+use std::{convert::Infallible, string::ParseError};
 
 use cssparser::{CowRcStr, Parser, Token};
 
@@ -9,11 +9,23 @@ use super::{ComponentValue, SimpleBlock};
 #[derive(Default)]
 pub struct Declarations<'i>(Vec<Declaration<'i>>);
 
+impl<'i> FromIterator<Declaration<'i>> for Declarations<'i> {
+    fn from_iter<T: IntoIterator<Item = Declaration<'i>>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
 impl<'i> TryFrom<SimpleBlock<'i>> for Declarations<'i> {
-    type Error = StyleError;
+    type Error = ParseError;
 
     fn try_from(value: SimpleBlock<'i>) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(
+            value
+            .into_iter()
+            .split_at(ComponentValue::is_semicolon)
+            .flat_map(Declaration::consume)
+            .collect()
+        )
     }
 }
 
@@ -36,31 +48,11 @@ impl<'i> Declaration<'i> {
             values: Default::default(),
             important: false
         }
-    }
-}
+    }   
 
-impl<'i> FromIterator<ComponentValue<'i>> for Result<Declaration<'i>, Infallible> {
-    fn from_iter<T: IntoIterator<Item = ComponentValue<'i>>>(iter: T) -> Self {
-        let parts = iter
-            .into_iter()
-            .split_at(|cv| matches!(cv, ComponentValue::Token(Token::Colon)))
-            .collect::<Vec<_>>();
-
-        if let Token::Ident(name) = Token::try_from(parts.pop().expect("Missing name").next().unwrap())? {
-            let decl = Declaration::new(name);
-            let rhss = parts.pop().filter(|cv| matches!(cv, ComponentValue::Token(Token::Semicolon)));
-            for rhs in  rhss{
-                // We matched !important
-                if let ComponentValue::Token(Token::Delim('!')) = rhs {
-                    if let Some(ComponentValue::Token(Token::Ident("important"))) = rhss.pop() {
-    
-                    }
-                }
-            }
-
-            return Ok(decl)
-        }
-
+    /// Parse an iterator of component values
+    pub fn parse<I>(values: I) -> ParseResult<'i, Self> where I: Iterator<Item=ComponentValue<'i>> {
         
     }
 }
+
