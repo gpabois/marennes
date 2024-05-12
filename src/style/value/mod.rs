@@ -1,46 +1,44 @@
 mod color;
+mod dimension;
 mod gradient;
 mod image;
 mod keyword;
-mod dimension;
 mod length;
 mod number;
-mod url;
-mod token;
-mod unit;
 mod percentage;
+mod unit;
+mod url;
 
-pub use unit::*;
 pub use color::*;
+pub use dimension::*;
 pub use gradient::*;
 pub use image::*;
 pub use keyword::*;
-pub use dimension::*;
-pub use url::*;
-pub use number::Number;
-pub use token::*;
 pub use length::*;
+pub use number::Number;
 pub use percentage::*;
+pub use unit::*;
+pub use url::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     String(String),
-    
+
     Number(Number),
     Percentage(Percentage),
     Dimension(Dimension),
     Length(Length),
-    
+
     Keyword(Keyword),
-    
+
     Color(Color),
-    
+
     Image(Image),
-    
+
     Url(Url),
-    
+
     Gradient(Gradient),
-    
+
     Array(Vec<Value>),
 }
 
@@ -64,7 +62,7 @@ impl std::fmt::Display for Value {
             Value::Gradient(gradient) => write!(f, "{}", gradient),
             Value::Number(number) => write!(f, "{}", number),
             Value::Dimension(dimension) => write!(f, "{}", dimension),
-            Value::Percentage(percentage) => write!(f, "{}", percentage)
+            Value::Percentage(percentage) => write!(f, "{}", percentage),
         }
     }
 }
@@ -90,8 +88,6 @@ where
         Self::Array(iter.into_iter().map(Self::from).collect())
     }
 }
-
-
 
 impl From<&str> for Value {
     fn from(value: &str) -> Self {

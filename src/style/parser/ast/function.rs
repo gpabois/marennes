@@ -1,54 +1,29 @@
-use cssparser::{CowRcStr, Parser, SourceLocation, Token};
-
-use crate::{iter::Splittable, style::ParseResult};
+use crate::style::{
+    traits::{Lexer, Parser},
+    Token, TokenKind,
+};
 
 use super::ComponentValue;
 
-#[derive(Clone)]
-pub struct Function<'i> {
-    pub name: CowRcStr<'i>,
-    pub args: Vec<ComponentValue<'i>>,
-    pub location: SourceLocation
+#[derive(Debug, PartialEq)]
+pub struct Function {
+    pub name: String,
+    pub value: Vec<ComponentValue>,
 }
 
-impl<'i> Function<'i> {
-    /// Consume a function
-    pub fn consume(parser: &mut Parser<'i, '_>) -> ParseResult<'i, Self> {
-        let location = parser.current_source_location();
-        let name = parser.expect_function()?.clone();
-        let mut func = Self::new(name, location);
-    
-        parser.parse_nested_block::<_, Self, _>(move |parser| { 
-            let mut args = Vec::<ComponentValue<'i>>::default();
-            
-            while !parser.is_exhausted() {
-                args.push(ComponentValue::consume(parser)?);
+impl Parser<Token> for Function {
+    fn parse<L: Lexer<Token>>(lexer: &mut L) -> Self {
+        let name = lexer.next().unwrap().kind.expect_ident().to_string();
+        let mut value = Vec::<ComponentValue>::default();
+
+        while let Some(token) = lexer.next() {
+            if matches!(token.kind, TokenKind::ClosingParenthesis) {
+                return Self { name, value };
             }
-    
-            func.args = args
-                .into_iter()
-                // split by ","
-                .split_at(ComponentValue::is_comma)
-                // we ensure a flatten list of args
-                .flatten()
-                // collect the args
-                .collect();
-    
-            Ok(func)
-        })
-    }
-}
 
-impl<'i> Function<'i> {
-    pub fn new(name: CowRcStr<'i>, location: SourceLocation) -> Self {
-        Self {
-            name,
-            location,
-            args: Vec::default(),
+            value.push(ComponentValue::parse(lexer));
         }
-    }
 
-    pub fn name(&self) -> &str {
-        self.name.as_ref()
+        Self { name, value }
     }
 }

@@ -1,99 +1,53 @@
-use cssparser::{BasicParseError, CowRcStr, Parser, SourceLocation};
+use crate::style::{
+    traits::{Lexer, Parser},
+    Token, TokenKind,
+};
 
-use crate::style::{consume, peek, CustomParseError, ParseResult, Token};
+use super::{Function, SimpleBlock};
 
-use super::{SimpleBlock, Function};
-
-/// A component value
-#[derive(Clone)]
-pub enum ComponentValue<'i> {
-    /// <function>
-    Function(Function<'i>),
-    /// {}, (), or [] blocks
-    Block(SimpleBlock<'i>),
-    /// Preserved token
-    PreservedToken{
-        location: SourceLocation,
-        token: Token<'i>
-    },
+#[derive(Debug, PartialEq)]
+pub enum ComponentValue {
+    Block(SimpleBlock),
+    Function(Function),
+    Token(Token),
 }
 
+impl ComponentValue {
+    pub fn token(token: Token) -> Self {
+        Self::Token(token)
+    }
 
-impl<'i> ComponentValue<'i> 
-{
-    pub fn location(&self) -> SourceLocation {
+    pub fn if_token<F: Fn(&Token) -> R, R>(&self, func: F) -> Option<R> {
         match self {
-            ComponentValue::Function(func) => func.location,
-            ComponentValue::Block(bck) => bck.location,
-            ComponentValue::PreservedToken { location, token: _ } => *location,
+            Self::Token(tok) => Some(func(tok)),
+            _ => None,
         }
     }
+}
 
-    pub fn try_into_token(self) -> ParseResult<'i, Token<'i>> {
-        match self {
-            ComponentValue::PreservedToken { location, token } => Ok(token),
-            _ => Err(self.location().new_custom_error(CustomParseError::Expecting("<token>")))
-        }      
+impl From<Token> for ComponentValue {
+    fn from(value: Token) -> Self {
+        Self::token(value)
     }
+}
 
-    pub fn try_into_ident(self) -> ParseResult<'i, CowRcStr<'i>>
-    {
-        match self {
-            ComponentValue::PreservedToken { location, token: Token::Ident(id) } => Ok(id),
-            _ => Err(self.location().new_custom_error(CustomParseError::Expecting("<ident>")))
+impl Parser<Token> for ComponentValue {
+    fn parse<L: Lexer<Token>>(lexer: &mut L) -> Self {
+        let token = lexer.current().unwrap();
+
+        if matches!(
+            token.kind,
+            TokenKind::OpeningSquareBracket
+                | TokenKind::OpeningParenthesis
+                | TokenKind::OpeningCurlyBracket
+        ) {
+            lexer.rewind();
+            ComponentValue::Block(SimpleBlock::parse(lexer))
+        } else if matches!(token.kind, TokenKind::Function(_)) {
+            lexer.rewind();
+            ComponentValue::Function(Function::parse(lexer))
+        } else {
+            ComponentValue::Token(token)
         }
-    }
-
-    /// ','
-    #[inline]
-    pub fn is_comma(&self) -> bool {
-        matches!(self, Self::PreservedToken { location: _, token: Token::Comma })
-    }
-
-    /// ':'
-    #[inline]
-    pub fn is_colon(&self) -> bool {
-        matches!(self, Self::PreservedToken { location: _, token: Token::Colon })
-    }
-
-    #[inline]
-    pub fn is_semicolon(&self) -> bool {
-        matches!(self, Self::PreservedToken { location: _, token: Token::Semicolon })
-    }
-
-    fn consume_token(parser: &mut Parser<'i, '_>) -> ParseResult<'i, Self> {
-        let location = parser.current_source_location();
-        let token = parser.next()?.clone();
-        Ok(Self::PreservedToken { location, token })      
-    }
-
-    fn consume_simple_block(parser: &mut Parser<'i, '_>) -> ParseResult<'i, Self> {
-        consume(parser)?;
-        Ok(Self::from(SimpleBlock::consume(parser)?))
-    }
-
-    fn consume_function(parser: &mut Parser<'i, '_>) -> ParseResult<'i, Self> {
-        consume(parser)?;
-        Ok(Self::from(Function::consume(parser)?))
-    }
-
-    pub fn consume(parser: &mut Parser<'i, '_>) -> ParseResult<'i, Self> {
-        match peek(parser)? {
-            Token::Function(_) => Self::consume_function(parser),
-            Token::ParenthesisBlock | Token::CurlyBracketBlock | Token::SquareBracketBlock => Self::consume_simple_block(parser),
-            _ => Self::consume_token(parser)
-        } 
-    }
-}
-
-impl<'i> From<Function<'i>> for ComponentValue<'i> {
-    fn from(value: Function<'i>) -> Self {
-        Self::Function(value)
-    }
-}
-
-impl<'i> From<SimpleBlock<'i>> for ComponentValue<'i> {
-    fn from(value: SimpleBlock<'i>) -> Self {
-        Self::Block(value)
     }
 }
